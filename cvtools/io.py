@@ -85,7 +85,8 @@ def extract_sift_feature(image_path, size=20, steps=10, force_orientation=False,
     m, n = im.size
 
     conf.make_tmp_path()
-    if image_path[-3:] != 'pgm':
+
+    if ospath.splitext(image_path)[1] != '.pgm':
         # 创建一个pgm文件
         pgm = ospath.join(conf.TMP_PATH, 'tmp.pgm')
         im.save(pgm)
@@ -99,14 +100,14 @@ def extract_sift_feature(image_path, size=20, steps=10, force_orientation=False,
     frame = np.array([xx, yy, scale * np.ones(xx.shape[0]), np.zeros(xx.shape[0])])
     np.savetxt(tmp_frame, frame.T, fmt='%03.3f')
 
-    result_path = ospath.join(conf.TMP_PATH, 'sift.tmp')
-    cmmd = ["sift", image_path, "--output=", 'sift.tmp', "--read-frames=" + tmp_frame, ]
+    result_path = ospath.join(conf.TMP_PATH, 'tmp.sift')
+    cmmd = ["sift", image_path, "--output=%s --read-frames=%s" % (result_path, tmp_frame,)]
     if force_orientation:
         cmmd.append("--orientations")
     if conf.VLFEAT_LOCATION not in os.environ['PATH']:
         os.environ['PATH'] += conf.VLFEAT_LOCATION
         print("Extract SIFT features of " + image_path)
-
+    # print(' '.join(cmmd).replace('/', os.sep))
     os.system(' '.join(cmmd).replace('/', os.sep))
     return result_path
 
