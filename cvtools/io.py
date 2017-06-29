@@ -115,6 +115,7 @@ def extract_sift_feature(image_path, size=20, steps=10, force_orientation=False,
 def read_features_from_file(filename):
     """ 从文件中读取特征属性并以矩阵的形式返回"""
     f = np.loadtxt(filename)
+    print(f)
     return f[:, :4], f[:, 4:]  # 特征位置, 描述子
 
 
