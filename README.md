@@ -5,3 +5,4 @@
  Python3.6 (using Anaconda)
 
 ## Requirement
+1. vlfeat

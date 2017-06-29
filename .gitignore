@@ -166,4 +166,7 @@ ENV/
 # mkdocs documentation
 /site
 
+# tmp dir&file
+tmp
+
 # End of https://www.gitignore.io/api/python,pycharm
