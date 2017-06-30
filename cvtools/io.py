@@ -70,7 +70,7 @@ def get_images_name(folder_path, suffixes=('.jpg', '.png',)):
         break
 
 
-def extract_sift_feature(image_path, size=20, steps=10, force_orientation=False, resize=None):
+def extract_sift_feature(image_path, size=30, steps=15, force_orientation=False, resize=None):
     """ 抽取图片的sift特征
     :param image_path: 图片文件的路径
     :param size:
@@ -115,8 +115,7 @@ def extract_sift_feature(image_path, size=20, steps=10, force_orientation=False,
 def read_features_from_file(filename):
     """ 从文件中读取特征属性并以矩阵的形式返回"""
     f = np.loadtxt(filename)
-    print(f)
-    return f[:, :4], f[:, 4:]  # 特征位置, 描述子
+    return f[:, :4], f[:, 4:]  # 特征位置(前四列), 描述子(从第四列以后的所有列)
 
 
-__all__ = ['save_data', 'load_data', 'load_images', 'get_images_name', 'extract_sift_feature']
+__all__ = ['save_data', 'load_data', 'load_images', 'get_images_name', 'extract_sift_feature','read_features_from_file']
