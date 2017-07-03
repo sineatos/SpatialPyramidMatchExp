@@ -117,5 +117,4 @@ def read_features_from_file(filename):
     f = np.loadtxt(filename)
     return f[:, :4], f[:, 4:]  # 特征位置(前四列), 描述子(从第四列以后的所有列)
 
-
 __all__ = ['save_data', 'load_data', 'load_images', 'get_images_name', 'extract_sift_feature','read_features_from_file']
