@@ -1,10 +1,12 @@
 # -*- encoding:UTF-8 -*-
 import cv2
-
+import numpy as np
 # 读取图像
 ii = r'H:\Pictures\Saved Pictures\2.jpg'  # '../dataset/testing/Phoning/Phoning_0041.jpg'
 im = cv2.imread(ii)
 cv2.imshow('original', im)
+print(im.shape)
+
 # cv2.waitKey()
 
 # 下采样
