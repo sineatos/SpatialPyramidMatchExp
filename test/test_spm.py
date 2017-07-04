@@ -1,12 +1,21 @@
 # -*- encoding:UTF-8 -*-
 
-import cv2
-from cvtools import *
+from os import path as ospath
 
-ii = r'H:\Pictures\Saved Pictures\2.jpg'  # '../dataset/testing/Phoning/Phoning_0041.jpg'
-im = cv2.imread(ii)
-features_list = calculate_sift([im, ], show_msg=True)
-hist_all, centers = generate_vocabulary_dictionary(features_list, show_msg=True)
-for features in features_list:
-    vec = compile_pyramid(features)
-    print(vec)
+from cvtools import io
+from cvtools import spm
+from cvtools import conf
+
+train_data_path = '../dataset/training'
+test_data_path = '../dataset/testing'
+
+# 导入训练数据和测试数据数据
+train_data = tuple(io.get_images_name(train_data_path, recursive=True))
+test_data = tuple(io.get_images_name(test_data_path, recursive=True))
+train_images = io.load_image2ndarray(train_data)
+train_labels = io.get_image_label_in_filename(train_data)
+
+mspm = spm.SpatialPyramidMatch(train_images, train_labels)
+
+fullname = io.save_data(mspm, filename="spm.pkl")
+print(fullname)

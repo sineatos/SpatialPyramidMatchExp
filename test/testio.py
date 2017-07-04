@@ -4,8 +4,9 @@ from cvtools import io
 
 
 def test_get_image_name_and_label(path):
-    for image_name in io.get_images_name(path, recursive=True):
-        label = io.get_image_label_in_filename(image_name)
+    image_names = tuple(io.get_images_name(path, recursive=True))
+    labels = io.get_image_label_in_filename(io.get_images_name(path, recursive=True))
+    for image_name, label in zip(image_names, labels):
         print(image_name, label)
 
 

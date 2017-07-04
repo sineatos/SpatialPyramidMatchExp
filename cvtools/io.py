@@ -8,6 +8,7 @@ import os
 import os.path as ospath
 import re
 from PIL import Image
+import cv2
 
 
 def save_data(data, path_prefix="data", filename="data.bin", mode="wb"):
@@ -72,17 +73,30 @@ def get_images_name(folder_path, suffixes=('.jpg', '.png',), recursive=False):
             break
 
 
-def get_image_label_in_filename(path, label_re=r'^(.*)_.*$'):
+def get_image_label_in_filename(paths, label_re=r'^(.*)_.*$'):
     """
     从文件命中获取图像的标签，该方法首先会使用os.path.basename获取文件路径中的文件名，然后使用正则表达式获取文件名中的标签
     注意：提取的标签为正则表达式中的第一个括号里的内容。
-    :param path: 文件路径
+    :param paths: 文件路径列表
     :param label_re: 正则表达式字符串，默认为文件名以"标签_其他文字和后缀名"作为名称
-    :return: 返回图像的标签
+    :return: 返回图像的标签列表
     """
-    filename = ospath.basename(path)
-    mo = re.match(label_re, filename)
-    return mo.group(1)
+    labels = []
+    for path in paths:
+        filename = ospath.basename(path)
+        mo = re.match(label_re, filename)
+        labels.append(mo.group(1))
+    return labels
 
 
-__all__ = ['save_data', 'load_data', 'load_pil_images', 'get_images_name', 'get_image_label_in_filename']
+def load_image2ndarray(paths):
+    """
+    根据图像路径并将图像转化为一个numpy.ndarray的对象返回，接收的输入为一个可迭代对象
+    :param paths: 图像路径列表
+    :return: numpy.ndarray对象列表
+    """
+    return [cv2.imread(path) for path in paths]
+
+
+__all__ = ['save_data', 'load_data', 'load_pil_images', 'get_images_name', 'get_image_label_in_filename',
+           'load_image2ndarray']
