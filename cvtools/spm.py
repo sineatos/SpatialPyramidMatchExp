@@ -52,7 +52,11 @@ def generate_vocabulary_dictionary(features_list, keyword_amounts=None, iters=20
         sift_all.append(features.descriptors)
     sift_all = np.concatenate(sift_all, axis=0)
     if keyword_amounts is None:
-        keyword_amounts = ceil(sift_all.shape[0] / 10)
+        if sift_all.shape[0] < dictionary_size:
+            keyword_amounts = sift_all.shape[0]
+        else:
+            keyword_amounts = dictionary_size
+        # keyword_amounts = ceil(sift_all.shape[0] / 10)
 
     centers = kmeans(sift_all, k_or_guess=keyword_amounts, iter=iters, thresh=thresh)[0]
 
@@ -142,7 +146,8 @@ class SpatialPyramidMatch:
     标准的空间金字塔匹配
     """
 
-    def __init__(self, train_set, train_label, pyramid_level=2, svm_kernel='linear', keep_redundancy=False):
+    def __init__(self, train_set, train_label, pyramid_level=2, svm_kernel='linear', keep_redundancy=False,
+                 show_msg=False):
         """
         初始化方法
         :param train_set: 图片训练集，需要是一个可迭代对象，每一个元素都是一个像素矩阵
@@ -150,6 +155,7 @@ class SpatialPyramidMatch:
         :param pyramid_level: 空间金字塔的层数，默认为2层
         :param svm_kernel: svm的核函数，默认是rbf，可以是'linear','poly','rbf','sigmoid','precomputed'
         :param keep_redundancy: 是否保留冗余数据，默认否
+        :param show_msg: 是否显示操作信息，默认否
         """
         self._features_list = None  # 特征列表，每一个元素包含一张图片的特征
         self._centers = None  # 视觉词典聚类中心
@@ -160,6 +166,7 @@ class SpatialPyramidMatch:
         self._svm_kernel = None  # svm的核函数
         self._svc_clf = None  # svm分类器
         self._keep_redundancy = keep_redundancy  # 是否保留冗余数据
+        self._show_msg = show_msg
         self._calculate_sift(train_set)
         self._generate_vocabulary_dictionary()
         self._init_label_set_and_label_list(train_set, train_label)
@@ -184,14 +191,17 @@ class SpatialPyramidMatch:
 
     # 计算图片的sift描述子
     def _calculate_sift(self, train_set):
+        self._show_operate_msg("calculate sift")
         self._features_list = calculate_sift(train_set)
 
     # 生成视觉词典并构建直方图
     def _generate_vocabulary_dictionary(self):
+        self._show_operate_msg("generate vocabulary dictionary")
         self._centers = generate_vocabulary_dictionary(self._features_list)
 
     # 初始化标签集
     def _init_label_set_and_label_list(self, train_set, train_label):
+        self._show_operate_msg("init label set and label list")
         self._label_set = dict(enumerate((set(train_label))))
         tmp_ls = dict((v, k) for k, v in self._label_set.items())
         self._label_list = np.empty(len(train_set))
@@ -201,14 +211,21 @@ class SpatialPyramidMatch:
 
     # 构建空间金字塔
     def _build_pyramid(self, pyramid_level):
+        self._show_operate_msg("build pyramid")
         self._pyramid_level = pyramid_level
         self._pyramid_matrix = []
         for features in self._features_list:
             self._pyramid_matrix.append(compile_pyramid(features, level=self._pyramid_level))
         self._pyramid_matrix = np.array(self._pyramid_matrix)  # 保存训练集中所有图片的空间金字塔长向量
 
+    # 显示操作信息
+    def _show_operate_msg(self, operation):
+        if self._show_msg:
+            print(operation, "is running ...")
+
     # SVM训练
     def _train_classificator(self, svm_kernel):
+        self._show_operate_msg("train classificator")
         train_matrix = histogram_intersection(self._pyramid_matrix, self._pyramid_matrix)
         self._svm_kernel = svm_kernel
         self._svc_clf = svm.SVC(kernel=svm_kernel)
