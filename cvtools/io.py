@@ -6,9 +6,8 @@
 import pickle
 import os
 import os.path as ospath
-import numpy as np
+import re
 from PIL import Image
-from cvtools import conf
 
 
 def save_data(data, path_prefix="data", filename="data.bin", mode="wb"):
@@ -38,10 +37,11 @@ def load_data(path_prefix="data", filename="data.bin", mode="rb"):
         return pickle.load(f)
 
 
-def load_images(folder_path, suffixes=('jpg', 'png',)):
+def load_pil_images(folder_path, suffixes=('jpg', 'png',), recursive=False):
     """迭代读入一个目录中的所有图片，但是不会递归读取。
     :param folder_path: 要读取图片的目录
     :param suffixes: 接受图片的后缀名元组
+    :param recursive: 是否递归读取，默认否
     :return: 一个迭代器，迭代的时候，每一次返回一个PIL.Image对象
     """
     images = []
@@ -51,70 +51,38 @@ def load_images(folder_path, suffixes=('jpg', 'png',)):
             if suf in suffixes:
                 image = Image.open(file)
                 images.append(image)
-        break
+        if not recursive:
+            break
     return images
 
 
-def get_images_name(folder_path, suffixes=('.jpg', '.png',)):
-    """迭代读入一个目录中的所有图片的路径，但是不会递归读取。
+def get_images_name(folder_path, suffixes=('.jpg', '.png',), recursive=False):
+    """迭代读入一个目录中的所有图片的路径。
         :param folder_path: 要读取图片的目录
         :param suffixes: 接受图片的后缀名元组
+        :param recursive: 是否递归读取，默认否
         :return: 一个迭代器，迭代的时候，每一次返回一个图片的路径名
         """
-    images = []
     for root, dirs, files in os.walk(folder_path):
         for file in files:
             pre, suf = ospath.splitext(file)
             if suf in suffixes:
-                yield ospath.join(folder_path, file)
-        break
+                yield ospath.join(root, file)
+        if not recursive:
+            break
 
 
-def extract_sift_feature(image_path, size=30, steps=15, force_orientation=False, resize=None):
-    """ 抽取图片的sift特征
-    :param image_path: 图片文件的路径
-    :param size:
-    :param steps:
-    :param force_orientation:
-    :param resize:
-    :return: sift保存的文件位置
+def get_image_label_in_filename(path, label_re=r'^(.*)_.*$'):
     """
-    im = Image.open(image_path).convert('L')
-    if resize is not None:
-        im = im.resize(resize)
-    m, n = im.size
-
-    conf.make_tmp_path()
-
-    if ospath.splitext(image_path)[1] != '.pgm':
-        # 创建一个pgm文件
-        pgm = ospath.join(conf.TMP_PATH, 'tmp.pgm')
-        im.save(pgm)
-        image_path = pgm
-
-    # 构建框并保存在临时文件里面
-    tmp_frame = ospath.join(conf.TMP_PATH, 'tmp.frame')
-    scale = size / 3.0
-    x, y = np.meshgrid(range(steps, m, steps), range(steps, n, steps))
-    xx, yy = x.flatten(), y.flatten()
-    frame = np.array([xx, yy, scale * np.ones(xx.shape[0]), np.zeros(xx.shape[0])])
-    np.savetxt(tmp_frame, frame.T, fmt='%03.3f')
-
-    result_path = ospath.join(conf.TMP_PATH, 'tmp.sift')
-    cmmd = ["sift", image_path, "--output=%s --read-frames=%s" % (result_path, tmp_frame,)]
-    if force_orientation:
-        cmmd.append("--orientations")
-    if conf.VLFEAT_LOCATION not in os.environ['PATH']:
-        os.environ['PATH'] += conf.VLFEAT_LOCATION
-        print("Extract SIFT features of " + image_path)
-    # print(' '.join(cmmd).replace('/', os.sep))
-    os.system(' '.join(cmmd).replace('/', os.sep))
-    return result_path
+    从文件命中获取图像的标签，该方法首先会使用os.path.basename获取文件路径中的文件名，然后使用正则表达式获取文件名中的标签
+    注意：提取的标签为正则表达式中的第一个括号里的内容。
+    :param path: 文件路径
+    :param label_re: 正则表达式字符串，默认为文件名以"标签_其他文字和后缀名"作为名称
+    :return: 返回图像的标签
+    """
+    filename = ospath.basename(path)
+    mo = re.match(label_re, filename)
+    return mo.group(1)
 
 
-def read_features_from_file(filename):
-    """ 从文件中读取特征属性并以矩阵的形式返回"""
-    f = np.loadtxt(filename)
-    return f[:, :4], f[:, 4:]  # 特征位置(前四列), 描述子(从第四列以后的所有列)
-
-__all__ = ['save_data', 'load_data', 'load_images', 'get_images_name', 'extract_sift_feature','read_features_from_file']
+__all__ = ['save_data', 'load_data', 'load_pil_images', 'get_images_name', 'get_image_label_in_filename']

@@ -6,6 +6,7 @@ from math import ceil, floor
 import cv2
 import numpy as np
 from scipy.cluster.vq import kmeans, vq
+from sklearn import svm
 
 
 def calculate_sift(images, show_msg=False):
@@ -48,9 +49,10 @@ def generate_vocabulary_dictionary(features_list, keyword_amounts=None, iters=20
     :return: 统计量矩阵(一行为一张图片的视觉词典统计量直方图向量),视觉词典的关键字(即聚类中心)
     """
     # train_indices = np.random.choice(len(features_list), len(features_list), replace=False)
-    sift_all = features_list[0].descriptors
-    for features in features_list[1:]:
-        sift_all = np.row_stack((sift_all, features.descriptors))
+    sift_all = []
+    for features in features_list:
+        sift_all.append(features.descriptors)
+    sift_all = np.concatenate(sift_all, axis=0)
     if keyword_amounts is None:
         keyword_amounts = ceil(sift_all.shape[0] / 5)
 
@@ -63,11 +65,11 @@ def generate_vocabulary_dictionary(features_list, keyword_amounts=None, iters=20
     # 获取图像中各个关键点最近的聚类中心，并赋值给features
     for features in features_list:
         features.textons = vq(features.descriptors, centers)[0]
-    hist_all, hist_edges = np.histogram(features_list[0].textons, bins=dictionary_size)
-    for features in features_list[1:]:
-        hist, hist_edges = np.histogram(features, bins=dictionary_size)
-        hist_all = np.row_stack((hist_all, hist))
-
+    hist_all = []
+    for features in features_list:
+        hist, hist_edges = np.histogram(features.textons, bins=dictionary_size)
+        hist_all.append(hist)
+    hist_all = np.array(hist_all)
     return hist_all, centers
 
 
@@ -123,20 +125,92 @@ def compile_pyramid(features, level=2, dictionary_size=200, show_msg=False):
     return result
 
 
+# 直方图交核函数
+def histogram_intersection(hist_m, hist_n):
+    """
+    求直方图的交，其中每一个直方图都是一个矩阵，第i行为第i张图片的长向量
+    :param hist_m: 直方图m
+    :param hist_n: 直方图n
+    :return:
+    """
+    m = hist_m.shape[0]
+    n = hist_n.shape[0]
+    result = np.empty((m, n))
+    for i in range(m):
+        for j in range(n):
+            # hist_m的第i张图片与hist_n的第j张图片的交(对应bin的最小值求和，已加权)
+            result[i][j] = np.sum(np.minimum(hist_m[i], hist_n[j]))
+    return result
+
+
 class SpatialPyramidMatch:
     """
     标准的空间金字塔匹配
     """
 
-    def __init__(self, train_set, pyramid_level=2):
+    def __init__(self, train_set, train_label, pyramid_level=2, svm_kernel='precomputed'):
         """
         初始化方法
         :param train_set: 图片训练集，需要是一个可迭代对象，每一个元素都是一个像素矩阵
-            :param pyramid_level: 空间金字塔的层数，默认为3层
-            """
+        :param train_label: 标签集(array-like)，长度必须要与训练集一样，每个元素表示着对应样本的标签
+        :param pyramid_level: 空间金字塔的层数，默认为2层
+        :param svm_kernel: svm的核函数，默认是rbf，可以是'linear','poly','rbf','sigmoid','precomputed'
+        """
+        self._features_list = None  # 特征列表，每一个元素包含一张图片的特征
+        self._hists = None  # 视觉词典直方图
+        self._centers = None  # 视觉词典聚类中心
+        self._label_set = None  # 标签集合，是一个dict((标签编号,对应属性))
+        self._label_list = None  # 图片对应的标签列表
+        self._pyramid_level = None  # 金字塔的层数
+        self._pyramid_matrix = None  # 金字塔长向量矩阵，每一行为一张图片的长向量
+        self._svm_kernel = None  # svm的核函数
+        self._svc_clf = None  # svm分类器
+        self._calculate_sift(train_set)
+        self._generate_vocabulary_dictionary()
+        self._init_label_set_and_label_list(train_set, train_label)
+        self._build_pyramid(pyramid_level)
+        self._train_classificator(svm_kernel)
+
+    # 计算图片的sift描述子
+    def _calculate_sift(self, train_set):
         self._features_list = calculate_sift(train_set)
+
+    # 生成视觉词典并构建直方图
+    def _generate_vocabulary_dictionary(self):
         self._hists, self._centers = generate_vocabulary_dictionary(self._features_list)
+
+    # 初始化标签集
+    def _init_label_set_and_label_list(self, train_set, train_label):
+        self._label_set = dict(enumerate((set(train_label))))
+        tmp_ls = dict((v, k) for k, v in self._label_set.items())
+        self._label_list = np.empty(len(train_set))
+        for i in range(len(self._label_list)):
+            self._label_list[i] = tmp_ls[train_label[i]]
+        del tmp_ls
+
+    # 构建空间金字塔
+    def _build_pyramid(self, pyramid_level):
         self._pyramid_level = pyramid_level
+        self._pyramid_matrix = []
+        for features in self._features_list:
+            self._pyramid_matrix.append(compile_pyramid(features, level=self._pyramid_level))
+        self._pyramid_matrix = np.array(self._pyramid_matrix)  # 保存训练集中所有图片的空间金字塔长向量
+
+    # SVM训练
+    def _train_classificator(self, svm_kernel):
+        self._train_matrix = histogram_intersection(self._pyramid_matrix, self._pyramid_matrix)
+        self._svc_clf = svm.SVC(kernel=svm_kernel)
+        self._svc_clf.fit(self._train_matrix, self._label_list)
+
+    def predict(self, test_matrix):
+        """
+        预测图片的类别
+        :param test_matrix: 金字塔长向量矩阵，每一行就是一张图片的金字塔长向量
+        :return: 一个列向量，每一个元素就是代表图片属于哪一类
+        """
+        predict_martix = histogram_intersection(test_matrix, self._pyramid_matrix)
+        results = self._svc_clf.predict(predict_martix)
+        return results
 
 
 class SIFTFeature:
@@ -160,4 +234,5 @@ class SIFTFeature:
         self.textons = None  # 记录关键点对应的聚类中心
 
 
-__all__ = ['SpatialPyramidMatch', 'SIFTFeature', 'calculate_sift', 'generate_vocabulary_dictionary', 'compile_pyramid']
+__all__ = ['SpatialPyramidMatch', 'SIFTFeature', 'calculate_sift', 'generate_vocabulary_dictionary', 'compile_pyramid',
+           'histogram_intersection']

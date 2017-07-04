@@ -1,18 +1,13 @@
 # -*- encoding:UTF-8 -*-
+
 from cvtools import io
-import cv2
-from pprint import pprint
 
-images = io.get_images_name(folder_path='../dataset/testing/Phoning')
-imgs = list(images)
-result_path = io.extract_sift_feature(imgs[0])
-a, b = io.read_features_from_file(result_path)
 
-im = cv2.imread(imgs[0])
-cv2.imshow('original', im)
-for k in range(a.shape[0]):
-    cv2.circle(im, (int(a[k][0]), int(a[k][1])), 1, (0, 255, 0), -1)
+def test_get_image_name_and_label(path):
+    for image_name in io.get_images_name(path, recursive=True):
+        label = io.get_image_label_in_filename(image_name)
+        print(image_name, label)
 
-cv2.imshow('SURF_features', im)
-cv2.waitKey()
-cv2.destroyAllWindows()
+
+if __name__ == '__main__':
+    test_get_image_name_and_label('../dataset/')
