@@ -52,7 +52,7 @@ def generate_vocabulary_dictionary(features_list, keyword_amounts=None, iters=20
         sift_all.append(features.descriptors)
     sift_all = np.concatenate(sift_all, axis=0)
     if keyword_amounts is None:
-        keyword_amounts = ceil(sift_all.shape[0] / 5)
+        keyword_amounts = ceil(sift_all.shape[0] / 10)
 
     centers = kmeans(sift_all, k_or_guess=keyword_amounts, iter=iters, thresh=thresh)[0]
 
@@ -95,7 +95,7 @@ def compile_pyramid(features, level=2, dictionary_size=200):
             # np.histogram的range是左开右闭的
             match_result[i, j, :] = np.histogram(texton_patch
                                                  , bins=dictionary_size
-                                                 , range=(0, dictionary_size))[0]  # / len(features.textons)
+                                                 , range=(0, dictionary_size))[0] / len(features.textons)
     all_match_result.append(match_result)
     pre_match_result = match_result
     for m_level in range(level - 1, 0, -1):
@@ -113,7 +113,7 @@ def compile_pyramid(features, level=2, dictionary_size=200):
     if level == 0:
         return match_result.flatten()
     for i, mr in enumerate(all_match_result):
-        p = level if i == 0 else level - i + 1
+        p = level if i == 0 else (level - i + 1)
         all_match_result[i] = mr.flatten() * 1 / (2 ** p)
     result = np.concatenate(all_match_result)
     return result
@@ -142,7 +142,7 @@ class SpatialPyramidMatch:
     标准的空间金字塔匹配
     """
 
-    def __init__(self, train_set, train_label, pyramid_level=2, svm_kernel='precomputed', keep_redundancy=False):
+    def __init__(self, train_set, train_label, pyramid_level=2, svm_kernel='linear', keep_redundancy=False):
         """
         初始化方法
         :param train_set: 图片训练集，需要是一个可迭代对象，每一个元素都是一个像素矩阵
