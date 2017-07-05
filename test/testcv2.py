@@ -2,7 +2,7 @@
 import cv2
 import numpy as np
 # 读取图像
-ii = r'H:\Pictures\Saved Pictures\2.jpg'  # '../dataset/testing/Phoning/Phoning_0041.jpg'
+ii = r'../dataset/testing/Phoning/Phoning_0041.jpg'  # ''
 im = cv2.imread(ii)
 cv2.imshow('original', im)
 print(im.shape)
@@ -18,6 +18,7 @@ s = cv2.xfeatures2d.SIFT_create()  # 调用SIFT
 # s = cv2.xfeatures2d.SURT_create()  #SURF()  # 调用SURF
 keypoints = s.detect(im)
 aa, descriptors = s.compute(im, keypoints)
+print(len(keypoints))
 # 显示特征点
 # for k in keypoints:
 #     cv2.circle(im, (int(k.pt[0]), int(k.pt[1])), 1, (0, 255, 0), -1)

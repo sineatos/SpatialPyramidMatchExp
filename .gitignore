@@ -169,4 +169,7 @@ ENV/
 # tmp dir&file
 tmp
 
+# .pkl
+*.pkl
+
 # End of https://www.gitignore.io/api/python,pycharm
